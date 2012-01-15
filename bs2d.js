@@ -13,6 +13,10 @@ function checkSupported() {
 
 function gameLoop(){
     checkWon();
+    if (!isEnd && !playerTurn && !animationRunning && !isBotShootTimerSet){
+        setTimeout("botShoot()", 1000);
+        isBotShootTimerSet = true;
+    }
     draw();
 }
 
@@ -30,8 +34,6 @@ function checkWon(){
     }
     
 }
-
-
 
 function draw(){
     //draw the menue
@@ -71,7 +73,7 @@ function draw(){
         }
 
         ctx_m.fillStyle = "rgb(185,211,238)";
-        ctx_m.fillRect (10, 100, 120, 120);
+        ctx_m.fillRect (10, 120, 120, 60);
         ctx_m.font = "18pt Arial"; 
         ctx_m.fillStyle = "rgb(0,0,0)";
         ctx_m.fillText(message , 15, 160);     
@@ -116,7 +118,7 @@ function getRandom(min, max) {
 function initButtons(){
     buttonRestart = new Object();
     buttonRestart.x = 20;
-    buttonRestart.y = 450;
+    buttonRestart.y = 200;
     buttonRestart.width = 100;
     buttonRestart.height = 25;
 }
@@ -124,6 +126,12 @@ function initButtons(){
 function initImages(){
     imgShip = new Image();
     imgShip.src = 'img/ship_1.gif';
+    
+    imgDestroyed = new Image();
+    imgDestroyed.src = 'img/destroyed.gif';
+    
+    imgHidden = new Image();
+    imgHidden.src = 'img/hidden.gif';
     
     imgExplode = new Array();
     for (var i = 0; i < 17; i++ ) {
@@ -150,6 +158,8 @@ function initGrids(){
               
                 for (j = 0; j < cols; j ++ ) {
                         row[j] = new Block( i, j );
+                        row[j].image = imgHidden;
+                        row[j].drawImg = true;
                 }       
                 botGrid[i] = row;
         }
@@ -164,6 +174,8 @@ function initGrids(){
              ty = getRandom(0,cols - 1);
          }while(playerGrid[tx][ty].isSet)
          playerGrid[tx][ty].isSet = true;
+         playerGrid[tx][ty].drawImg = true;
+         playerGrid[tx][ty].image = imgShip;
          //playerGrid[tx][ty].colour = "rgb(30,144,255)";
          ships_player[i]= new smallShip(playerGrid[tx][ty]);
          shipsleft_player++;
@@ -173,7 +185,7 @@ function initGrids(){
              tx = getRandom(0,rows - 1);
              ty = getRandom(0,cols - 1);
          }while(botGrid[tx][ty].isSet)
-         botGrid[tx][ty].isSet = true;
+         botGrid[tx][ty].isSet = true;         
          //botGrid[tx][ty].colour = "rgb(30,144,255)";
          ships_bot[i]= new smallShip(botGrid[tx][ty]);
          shipsleft_bot++;
@@ -193,7 +205,7 @@ function init() {
         initImages();
     
     //Ship Specs
-        ships_small=3;
+        ships_small=5;
         
         ships_player = Array();
         ships_bot = Array();
@@ -201,8 +213,8 @@ function init() {
         shipsleft_bot = 0;
         
     //Grid specs
-	rows = 16;
-	cols = 16;
+	rows = 8;
+	cols = 8;
 	blockSpacing = 1;
         blockWidth = 30;
         
@@ -213,6 +225,7 @@ function init() {
         playerWon = false;
         botWon = false;
         isEnd = false;
+        isBotShootTimerSet = false;
 
     // Do some maths to speed up the calculations later
 	totalBlockWidth = blockWidth + blockSpacing;
@@ -252,6 +265,7 @@ function restart(){
     playerWon = false;
     botWon = false;
     isEnd = false;
+    isBotShootTimerSet = false;
 }
 
 function checkCanvasMenueClicked()
@@ -264,17 +278,21 @@ function checkCanvasMenueClicked()
         }
     }
 }
+
 function checkCanvasPlayerClicked()
 {
-    
+    //No need for at the moment
 }
+
 function checkCanvasBotClicked()
 {
-    if (!animationRunning && !isEnd){       
+    if (!animationRunning && !isEnd && playerTurn){
+        
         for (var i = 0; i < rows; i ++) {       
             for (var j = 0; j < cols; j ++ ) {
                     if ( mouse_x > botGrid[i][j].xPixel && mouse_x < (botGrid[i][j].xPixel + blockWidth)){
                         if ( mouse_y > botGrid[i][j].yPixel && mouse_y < (botGrid[i][j].yPixel + blockWidth)){
+                            playerTurn = false;
                             if (botGrid[i][j].isSet){
                                 if ( !botGrid[i][j].isFound){
                                      //botGrid[i][j].colour = "rgb(200,10,120)";
@@ -288,13 +306,12 @@ function checkCanvasBotClicked()
                                 
                                 }                           
                             }else{
-                                botGrid[i][j].colour = "rgb(120,120,120)";
+                                botGrid[i][j].drawImg = false;
                             }
                             return;
                         }
                     }           
             }
-
         }
     }
 }
@@ -302,7 +319,7 @@ function checkCanvasBotClicked()
 function explode(){
     if (animationPos == 17){
         animationRunning = false;
-        animationBlock.isSet = false;
+        animationBlock.image = imgDestroyed;
         clearInterval(aniVal);
     }else{
         animationBlock.image = imgExplode[animationPos];
@@ -321,11 +338,12 @@ function Block(x, y){
     this.isSet = false;
     this.isFound = false;
     this.image = imgShip;
+    this.drawImg = false
     
     this.draw = function(ctx) {
         ctx.fillStyle = this.colour;
         ctx.fillRect(this.xPixel, this.yPixel, blockWidth, blockWidth);
-        if (this.isSet){
+        if (this.drawImg){
             ctx.drawImage(this.image, this.xPixel, this.yPixel, blockWidth,blockWidth);
         }    
     }
@@ -334,3 +352,28 @@ function Block(x, y){
 function smallShip(block){
     this.block = block;
 }
+
+function botShoot(){
+     var tx,ty;
+     do {
+         tx = getRandom(0,rows - 1);
+         ty = getRandom(0,cols - 1);
+     }while(playerGrid[tx][ty].isFound)
+ 
+    playerGrid[tx][ty].isFound = true;
+ 
+     if (playerGrid[tx][ty].isSet){
+        shipsleft_player--;
+        //draw explosion animation
+        animationRunning = true;
+        animationPos = 0;
+        animationBlock = playerGrid[tx][ty];
+        aniVal = setInterval(explode, 30);
+     }
+     else{
+         playerGrid[tx][ty].colour = "rgb(120,120,120)";
+     }
+     isBotShootTimerSet = false;
+     playerTurn = true;
+     
+ }
